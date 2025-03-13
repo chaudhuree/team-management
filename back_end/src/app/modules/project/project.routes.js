@@ -8,10 +8,12 @@ const {
   getProjectsByPhase,
   getProjectsByMonth,
   updateProject,
+  updateProjectStatus,
   assignUserToProject,
   getUserProjects,
   duplicateProject,
   deleteProject,
+  deleteProjectAssignment,
 } = require('./project.controller');
 
 const router = express.Router();
@@ -75,5 +77,18 @@ router.get(
   auth(),
   getProjectById
 );
+
+router.delete(
+  '/assignments/:assignmentId',
+  auth(ENUM_USER_ROLE.LEADER),
+  deleteProjectAssignment
+);
+
+router.post(
+  '/:projectId/status',
+  auth(ENUM_USER_ROLE.LEADER),
+  updateProjectStatus
+);  
+
 
 module.exports = router;

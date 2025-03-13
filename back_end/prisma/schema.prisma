@@ -111,7 +111,9 @@ model Project {
   deadline        DateTime
   milestones      Int?
   runningMilestone Int?
-  status          String[]
+  projectStatus   ProjectStatus @default(NOT_STARTED)
+  status          ProjectPhaseStatus[] @relation("ProjectPhaseStatuses")
+  deliveryDate    DateTime?
   createdAt       DateTime  @default(now())
   creationMonth   String    // Format: "YYYY-MM" (e.g., "2025-01")
   updatedAt       DateTime  @updatedAt
@@ -238,4 +240,27 @@ model Notification {
   createdAt   DateTime  @default(now())
 
   @@map("notifications")
+}
+
+// New enum for overall project status
+enum ProjectStatus {
+  NOT_STARTED
+  WIP
+  CANCELLED
+  DISPUTE
+  DELIVERED
+  REVISION_DELIVERY
+}
+
+// New model for phase-specific status
+model ProjectPhaseStatus {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  project     Project   @relation("ProjectPhaseStatuses", fields: [projectId], references: [id])
+  projectId   String    @db.ObjectId
+  phase       ProjectPhase
+  status      String    // e.g., "Started", "Completed", etc.
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("project_phase_statuses")
 }

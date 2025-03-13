@@ -111,6 +111,34 @@ export const deleteProject = createAsyncThunk(
     }
   }
 );
+export const updateProjectStatus = createAsyncThunk(
+  'project/updateStatus',
+  async ({ projectId, status, deliveryDate }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`/projects/${projectId}/status`, {
+        status,
+        deliveryDate,
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to update status' });
+    }
+  }
+);
+export const updatePhaseStatus = createAsyncThunk(
+  'project/updatePhaseStatus',
+  async ({ projectId, phase, status }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post(`/projects/${projectId}/phase-status`, {
+        phase,
+        status,
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to update phase status' });
+    }
+  }
+);
 
 const initialState = {
   projects: [],
@@ -280,6 +308,25 @@ const projectSlice = createSlice({
       .addCase(deleteProject.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload?.message;
+      })
+      .addCase(updateProjectStatus.fulfilled, (state, action) => {
+        const index = state.projects.findIndex(p => p.id === action.payload.data.id);
+        if (index !== -1) {
+          state.projects[index] = action.payload.data;
+        }
+      })
+      .addCase(updatePhaseStatus.fulfilled, (state, action) => {
+        const index = state.projects.findIndex(p => p.id === action.payload.data.projectId);
+        if (index !== -1) {
+          const project = state.projects[index];
+          project.status = project.status || [];
+          const statusIndex = project.status.findIndex(s => s.phase === action.payload.data.phase);
+          if (statusIndex !== -1) {
+            project.status[statusIndex] = action.payload.data;
+          } else {
+            project.status.push(action.payload.data);
+          }
+        }
       });
   },
 });

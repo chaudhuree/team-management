@@ -16,26 +16,15 @@ const createProject = async (payload) => {
     assignedUsers,
   } = payload;
 
-  // Create project with initial status based on type
-  const initialStatus = [];
-  if (type === 'FULL_STACK' || type === 'FRONTEND_ONLY') {
-    initialStatus.push('Frontend/Started');
-  }
-  if (type === 'FULL_STACK') {
-    initialStatus.push('Backend/Started');
-  }
-  if (type === 'FULL_STACK' || type === 'UI_ONLY') {
-    initialStatus.push('UI/Started');
-  }
-
   // Ensure deadline is a valid ISO date string
   let formattedDeadline;
   try {
     formattedDeadline = new Date(deadline).toISOString();
   } catch (error) {
-    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid deadline format. Please provide a valid date.');
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid deadline format');
   }
 
+  // Create project with initial NOT_STARTED status
   const project = await prisma.project.create({
     data: {
       name,
@@ -45,15 +34,15 @@ const createProject = async (payload) => {
       priority,
       deadline: formattedDeadline,
       milestones,
-      status: initialStatus,
-      creationMonth: new Date().toISOString().slice(0, 7), // YYYY-MM format
+      projectStatus: 'NOT_STARTED',
+      creationMonth: new Date().toISOString().slice(0, 7),
       team: {
         connect: { id: teamId },
       },
     },
   });
 
-  // Assign users if provided
+  // Handle assignments if provided
   if (assignedUsers && assignedUsers.length > 0) {
     const assignments = assignedUsers.map((assignment) => ({
       userId: assignment.userId,
@@ -65,9 +54,6 @@ const createProject = async (payload) => {
       data: assignments,
     });
   }
-
-  // Start deadline checker for the project
-  checkDeadlines();
 
   return project;
 };
@@ -128,9 +114,41 @@ const getAllProjects = async (filters) => {
 const getProjectById = async (id) => {
   const project = await prisma.project.findUnique({
     where: { id },
+    include: {
+      assignments: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              photo: true,
+              role: true,
+              department: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          }
+        }
+      },
+      notes: {
+        orderBy: {
+          version: 'desc'
+        }
+      },
+      status: true
+    }
   });
+
+  if (!project) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Project not found');
+  }
+
   return project;
 };
+
 
 const getProjectsByPhase = async (phase) => {
   const projects = await prisma.project.findMany({
@@ -211,6 +229,19 @@ const assignUserToProject = async (projectId, userId, phase) => {
     throw new ApiError(httpStatus.NOT_FOUND, 'Project not found');
   }
 
+  // Check if user is already assigned to this phase
+  const existingAssignment = await prisma.projectAssignment.findFirst({
+    where: {
+      projectId,
+      userId,
+      phase,
+    },
+  });
+
+  if (existingAssignment) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User is already assigned to this phase');
+  }
+
   const assignment = await prisma.projectAssignment.create({
     data: {
       project: {
@@ -222,7 +253,20 @@ const assignUserToProject = async (projectId, userId, phase) => {
       phase,
     },
     include: {
-      user: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          photo: true,
+          role: true,
+          department: {
+            select: {
+              name: true
+            }
+          }
+        }
+      },
       project: true,
     },
   });
@@ -317,6 +361,89 @@ const deleteProject = async (id) => {
   return project;
 };
 
+// Add new method to update project status
+const updateProjectStatus = async (projectId, newStatus, deliveryDate = null) => {
+  if (!projectId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Project ID is required');
+  }
+
+  const project = await prisma.project.findUnique({
+    where: {
+      id: projectId
+    },
+  });
+
+  if (!project) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Project not found');
+  }
+
+  const updateData = {
+    projectStatus: newStatus,
+  };
+
+  // If status is DELIVERED, set delivery date
+  if (newStatus === 'DELIVERED') {
+    updateData.deliveryDate = new Date().toISOString();
+  }
+
+  return prisma.project.update({
+    where: { id: projectId },
+    data: updateData,
+  });
+};
+
+// Add new method to manage phase status
+const updatePhaseStatus = async (projectId, phase, status) => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+  });
+
+  if (!project) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Project not found');
+  }
+
+  // Check if phase status already exists
+  const existingStatus = await prisma.projectPhaseStatus.findFirst({
+    where: {
+      projectId,
+      phase,
+    },
+  });
+
+  if (existingStatus) {
+    return prisma.projectPhaseStatus.update({
+      where: { id: existingStatus.id },
+      data: { status },
+    });
+  }
+
+  return prisma.projectPhaseStatus.create({
+    data: {
+      projectId,
+      phase,
+      status,
+    },
+  });
+};
+
+const deleteProjectAssignment = async (assignmentId) => {
+  // First check if the assignment exists
+  const assignment = await prisma.projectAssignment.findUnique({
+    where: { id: assignmentId },
+  });
+
+  if (!assignment) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Assignment not found');
+  }
+
+  // Delete the assignment
+  const deletedAssignment = await prisma.projectAssignment.delete({
+    where: { id: assignmentId },
+  });
+
+  return deletedAssignment;
+};
+
 module.exports.ProjectService = {
   createProject,
   getAllProjects,
@@ -328,4 +455,7 @@ module.exports.ProjectService = {
   getUserProjects,
   duplicateProject,
   deleteProject,
+  updateProjectStatus,
+  updatePhaseStatus,
+  deleteProjectAssignment,
 };

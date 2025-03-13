@@ -229,7 +229,7 @@ console.log({user,team})
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProjects.map((project) => project && (
+              {filteredProjects?.map((project) => project && (
                 <tr
                   key={project.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -250,7 +250,7 @@ console.log({user,team})
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
-                      {project.status.map((status, index) => (
+                      {project?.status?.map((status, index) => (
                         <span
                           key={index}
                           className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"

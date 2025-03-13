@@ -119,6 +119,41 @@ const deleteProject = catchAsync(async (req, res) => {
   });
 });
 
+const updateProjectStatus = catchAsync(async (req, res) => {
+  const { status, deliveryDate } = req.body;
+  const { projectId } = req.params;
+  
+  const result = await ProjectService.updateProjectStatus(projectId, status, deliveryDate);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Project status updated successfully',
+    data: result,
+  });
+});
+
+const updatePhaseStatus = catchAsync(async (req, res) => {
+  const { projectId, phase, status } = req.body;
+  const result = await ProjectService.updatePhaseStatus(projectId, phase, status);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Phase status updated successfully',
+    data: result,
+  });
+});
+
+const deleteProjectAssignment = catchAsync(async (req, res) => {
+  const { assignmentId } = req.params;
+  const result = await ProjectService.deleteProjectAssignment(assignmentId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Assignment deleted successfully',
+    data: result,
+  });
+});
+
 module.exports = {
   createProject,
   getAllProjects,
@@ -130,4 +165,7 @@ module.exports = {
   getUserProjects,
   duplicateProject,
   deleteProject,
+  updateProjectStatus,
+  updatePhaseStatus,
+  deleteProjectAssignment,
 };

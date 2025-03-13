@@ -19,7 +19,6 @@ const CreateProjectModal = ({ isOpen, onClose, teamMembers, departments, isLoadi
     priority: 'MEDIUM',
     description: '',
     teamId: team.id, // Will be set in useEffect
-    assignedUsers: [],
   });
 
   // Ensure teamId is set from auth state
@@ -63,7 +62,7 @@ const CreateProjectModal = ({ isOpen, onClose, teamMembers, departments, isLoadi
       return;
     }
     
-    toast.info('Submitting project...', { id: 'submit' });
+    // toast.info('Submitting project...', { id: 'submit' });
     
     console.log('Submitting project with data:', formattedData);
 
@@ -87,16 +86,6 @@ const CreateProjectModal = ({ isOpen, onClose, teamMembers, departments, isLoadi
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
-  };
-
-  const handleAssignmentChange = (e, memberId) => {
-    const isChecked = e.target.checked;
-    setFormData((prev) => {
-      const updatedAssignedUsers = isChecked
-        ? [...prev.assignedUsers, { userId: memberId, phase: 'UI' }] // Example: Assign to UI phase
-        : prev.assignedUsers.filter((user) => user.userId !== memberId);
-      return { ...prev, assignedUsers: updatedAssignedUsers };
-    });
   };
 
   if (isLoading) {
@@ -237,61 +226,6 @@ const CreateProjectModal = ({ isOpen, onClose, teamMembers, departments, isLoadi
             rows={3}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
-        </div>
-
-        {/* Assign Team Members */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Assign Team Members
-          </label>
-          {teamMembers && teamMembers.length > 0 ? (
-            <div className="max-h-60 overflow-y-auto border rounded-md p-3">
-              {teamMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center space-x-3 py-2"
-                >
-                  <input
-                    type="checkbox"
-                    id={`member-${member.id}`}
-                    checked={formData.assignedUsers.some(user => user.userId === member.id)}
-                    onChange={(e) => handleAssignmentChange(e, member.id)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <div className="flex items-center">
-                    {member.photo ? (
-                      <img
-                        className="h-8 w-8 rounded-full mr-3"
-                        src={member.photo}
-                        alt={member.name}
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center">
-                        <span className="text-gray-500 text-sm">
-                          {member.name?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </div>
-                    )}
-                    <div className="text-sm">
-                      <div className="font-medium text-gray-900">
-                        {member.name}
-                        {member.isTeamLeader && (
-                          <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                            Leader
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-gray-500">
-                        {member.department ? member.department.name : 'Not Assigned'} - {member.role || 'Member'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500 text-sm">No team members available.</p>
-          )}
         </div>
 
         <div className="flex justify-end space-x-3 pt-4">
