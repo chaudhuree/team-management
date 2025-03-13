@@ -362,26 +362,44 @@ const deleteProject = async (id) => {
 };
 
 // Add new method to update project status
-const updateProjectStatus = async (projectId, newStatus, deliveryDate = null) => {
+const updateProjectStatus = async (projectId, newStatus, comment = '', userId) => {
   if (!projectId) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Project ID is required');
   }
 
+  if (!userId) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User ID is required for status update');
+  }
+
   const project = await prisma.project.findUnique({
-    where: {
-      id: projectId
-    },
+    where: { id: projectId },
   });
 
   if (!project) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Project not found');
   }
 
+  const oldStatus = project.projectStatus;
+
+  // Create status history entry with proper project connection
+  await prisma.projectStatusHistory.create({
+    data: {
+      oldStatus,
+      newStatus,
+      comment,
+      project: {
+        connect: { id: projectId }
+      },
+      updatedBy: {
+        connect: { id: userId }
+      }
+    },
+  });
+
   const updateData = {
     projectStatus: newStatus,
   };
 
-  // If status is DELIVERED, set delivery date
   if (newStatus === 'DELIVERED') {
     updateData.deliveryDate = new Date().toISOString();
   }
@@ -389,6 +407,21 @@ const updateProjectStatus = async (projectId, newStatus, deliveryDate = null) =>
   return prisma.project.update({
     where: { id: projectId },
     data: updateData,
+    include: {
+      statusHistory: {
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: {
+          updatedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
   });
 };
 
@@ -444,6 +477,173 @@ const deleteProjectAssignment = async (assignmentId) => {
   return deletedAssignment;
 };
 
+const createProjectNote = async (projectId, content, userId, comment = '') => {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+  });
+
+  if (!project) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Project not found');
+  }
+
+  // Create the note
+  const newNote = await prisma.note.create({
+    data: {
+      content,
+      version: 1,
+      project: {
+        connect: { id: projectId }
+      },
+      createdBy: {
+        connect: { id: userId }
+      },
+      comment,
+    },
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  return newNote;
+};
+
+const getProjectStatusHistory = async (projectId) => {
+  return prisma.projectStatusHistory.findMany({
+    where: { projectId },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      updatedBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+};
+
+const getNoteHistory = async (noteId) => {
+  const note = await prisma.note.findUnique({
+    where: { id: noteId },
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      history: {
+        orderBy: {
+          version: 'desc',
+        },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!note) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Note not found');
+  }
+
+  return {
+    current: note,
+    history: note.history,
+  };
+};
+
+const updateProjectNote = async (noteId, content, userId, comment = '') => {
+  const existingNote = await prisma.note.findUnique({
+    where: { id: noteId },
+  });
+
+  if (!existingNote) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Note not found');
+  }
+
+  // Create a history entry
+  await prisma.noteHistory.create({
+    data: {
+      content: existingNote.content,
+      version: existingNote.version,
+      note: {
+        connect: { id: noteId }
+      },
+      createdBy: {
+        connect: { id: existingNote.createdById }
+      },
+      comment: existingNote.comment || 'Previous version'
+    },
+  });
+
+  // Update the existing note
+  const updatedNote = await prisma.note.update({
+    where: { id: noteId },
+    data: {
+      content,
+      version: existingNote.version + 1,
+      comment,
+      updatedAt: new Date(),
+    },
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+
+  return updatedNote;
+};
+
+const deleteProjectNote = async (noteId) => {
+  // First check if the note exists
+  const note = await prisma.note.findUnique({
+    where: { id: noteId },
+    include: {
+      history: true // Include only the history relation
+    }
+  });
+
+  if (!note) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'Note not found');
+  }
+
+  // Delete all history entries first
+  if (note.history.length > 0) {
+    await prisma.noteHistory.deleteMany({
+      where: {
+        noteId: noteId,
+      },
+    });
+  }
+
+  // Delete the main note
+  const deletedNote = await prisma.note.delete({
+    where: { id: noteId },
+  });
+
+  return deletedNote;
+};
+
 module.exports.ProjectService = {
   createProject,
   getAllProjects,
@@ -458,4 +658,9 @@ module.exports.ProjectService = {
   updateProjectStatus,
   updatePhaseStatus,
   deleteProjectAssignment,
+  createProjectNote,
+  getProjectStatusHistory,
+  getNoteHistory,
+  updateProjectNote,
+  deleteProjectNote,
 };

@@ -5,8 +5,12 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { updateProjectStatus } from '../../store/slices/projectSlice';
-import { FaPlus as PlusIcon, FaTrash as TrashIcon } from 'react-icons/fa';
+import { FaPlus as PlusIcon, FaTrash as TrashIcon, FaHistory as HistoryIcon, FaEdit as EditIcon } from 'react-icons/fa';
 import AssignMemberModal from './AssignMemberModal';
+import AddNoteModal from './AddNoteModal';
+import StatusHistoryModal from './StatusHistoryModal';
+import NoteHistoryModal from './NoteHistoryModal';
+import ViewNoteModal from './ViewNoteModal';
 // get role of user from redux
 
 const ProjectDetails = () => {
@@ -20,6 +24,14 @@ const ProjectDetails = () => {
   const [teamMembers, setTeamMembers] = useState([]);
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [isStatusHistoryModalOpen, setIsStatusHistoryModalOpen] = useState(false);
+  const [statusComment, setStatusComment] = useState('');
+  const [isNoteHistoryModalOpen, setIsNoteHistoryModalOpen] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [selectedViewNote, setSelectedViewNote] = useState(null);
+  const [isViewNoteModalOpen, setIsViewNoteModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProjectDetails();
@@ -60,6 +72,29 @@ const ProjectDetails = () => {
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to remove member');
     }
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await axios.delete(`/projects/notes/${noteId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotes(notes.filter(note => note.id !== noteId));
+      toast.success('Note deleted successfully');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete note');
+    }
+  };
+
+  const handleEditNote = (note) => {
+    setSelectedNote(note);
+    setIsEditingNote(true);
+    setIsAddNoteModalOpen(true);
+  };
+
+  const truncateText = (text, maxLength = 100) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
   };
 
   if (loading) {
@@ -111,8 +146,11 @@ const ProjectDetails = () => {
       await dispatch(updateProjectStatus({
         projectId: project.id,
         status: newStatus,
+        comment: statusComment || '',
       })).unwrap();
+      
       toast.success('Project status updated successfully');
+      setStatusComment(''); // Clear the comment after successful update
       fetchProjectDetails();
     } catch (error) {
       toast.error('Failed to update project status');
@@ -261,14 +299,65 @@ const ProjectDetails = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Notes</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Notes</h2>
+            <button
+              onClick={() => setIsAddNoteModalOpen(true)}
+              className="flex items-center px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              <PlusIcon className="h-4 w-4 mr-1" />
+              Add Note
+            </button>
+          </div>
           {notes.length > 0 ? (
             <div className="space-y-4">
-              {notes?.map((note) => (
+              {notes.map((note) => (
                 <div key={note.id} className="border-b pb-3">
-                  <p className="whitespace-pre-wrap">{note.content}</p>
+                  <div className="flex justify-between items-start">
+                    <p 
+                      className="whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer hover:text-blue-600"
+                      onClick={() => {
+                        setSelectedViewNote(note);
+                        setIsViewNoteModalOpen(true);
+                      }}
+                    >
+                      {truncateText(note.content)}
+                    </p>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setSelectedNote(note);
+                          setIsNoteHistoryModalOpen(true);
+                        }}
+                        className="p-1 text-gray-600 hover:text-gray-800"
+                        title="View History"
+                      >
+                        <HistoryIcon className="h-4 w-4" />
+                      </button>
+                      {user?.role === 'LEADER' && (
+                        <>
+                          <button
+                            onClick={() => handleEditNote(note)}
+                            className="p-1 text-blue-600 hover:text-blue-800"
+                            title="Edit Note"
+                          >
+                            <EditIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteNote(note.id)}
+                            className="p-1 text-red-600 hover:text-red-800"
+                            title="Delete Note"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                   <div className="text-sm text-gray-500 mt-2">
                     <span>Version {note.version}</span>
+                    <span className="mx-2">•</span>
+                    <span>By {note.createdBy?.name}</span>
                     <span className="mx-2">•</span>
                     <span>{formatDate(note.updatedAt)}</span>
                   </div>
@@ -282,20 +371,31 @@ const ProjectDetails = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Project Status</h2>
-        <div className="flex items-center space-x-4">
-          <select
-            value={project.projectStatus}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Project Status</h2>
+          <button
+            onClick={() => setIsStatusHistoryModalOpen(true)}
+            className="flex items-center px-3 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
-            <option value="NOT_STARTED">Not Started</option>
-            <option value="WIP">Work in Progress</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="DISPUTE">Dispute</option>
-            <option value="DELIVERED">Delivered</option>
-            <option value="REVISION_DELIVERY">Revision Delivery</option>
-          </select>
+            <HistoryIcon className="h-4 w-4 mr-1" />
+            View History
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <select
+              value={project.projectStatus}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="NOT_STARTED">Not Started</option>
+              <option value="WIP">Work in Progress</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="DISPUTE">Dispute</option>
+              <option value="DELIVERED">Delivered</option>
+              <option value="REVISION_DELIVERY">Revision Delivery</option>
+            </select>
+          </div>
         </div>
         {project.deliveryDate && (
           <p className="mt-2 text-sm text-gray-600">
@@ -311,6 +411,56 @@ const ProjectDetails = () => {
           projectId={id}
           teamMembers={teamMembers}
           setAssignments={setAssignments}
+        />
+      )}
+
+      {isAddNoteModalOpen && (
+        <AddNoteModal
+          isOpen={isAddNoteModalOpen}
+          onClose={() => {
+            setIsAddNoteModalOpen(false);
+            setSelectedNote(null);
+            setIsEditingNote(false);
+          }}
+          projectId={id}
+          note={isEditingNote ? selectedNote : null}
+          onNoteAdded={(newNote) => {
+            if (isEditingNote) {
+              setNotes(notes.map(n => n.id === newNote.id ? newNote : n));
+            } else {
+              setNotes([...notes, newNote]);
+            }
+          }}
+        />
+      )}
+
+      {isStatusHistoryModalOpen && (
+        <StatusHistoryModal
+          isOpen={isStatusHistoryModalOpen}
+          onClose={() => setIsStatusHistoryModalOpen(false)}
+          projectId={id}
+        />
+      )}
+
+      {isNoteHistoryModalOpen && selectedNote && (
+        <NoteHistoryModal
+          isOpen={isNoteHistoryModalOpen}
+          onClose={() => {
+            setIsNoteHistoryModalOpen(false);
+            setSelectedNote(null);
+          }}
+          noteId={selectedNote.id}
+        />
+      )}
+
+      {isViewNoteModalOpen && selectedViewNote && (
+        <ViewNoteModal
+          isOpen={isViewNoteModalOpen}
+          onClose={() => {
+            setIsViewNoteModalOpen(false);
+            setSelectedViewNote(null);
+          }}
+          note={selectedViewNote}
         />
       )}
     </div>

@@ -120,10 +120,11 @@ const deleteProject = catchAsync(async (req, res) => {
 });
 
 const updateProjectStatus = catchAsync(async (req, res) => {
-  const { status, deliveryDate } = req.body;
+  const { status, comment } = req.body;
   const { projectId } = req.params;
+  const userId = req.user.id; // Get the user ID from the authenticated request
   
-  const result = await ProjectService.updateProjectStatus(projectId, status, deliveryDate);
+  const result = await ProjectService.updateProjectStatus(projectId, status, comment, userId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -154,6 +155,78 @@ const deleteProjectAssignment = catchAsync(async (req, res) => {
   });
 });
 
+const createProjectNote = catchAsync(async (req, res) => {
+  const { projectId, content, parentNoteId, comment } = req.body;
+  const result = await ProjectService.createProjectNote(
+    projectId,
+    content,
+    req.user.id,
+    parentNoteId,
+    comment
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: 'Note created successfully',
+    data: result,
+  });
+});
+
+const getProjectStatusHistory = catchAsync(async (req, res) => {
+  const { projectId } = req.params;
+  const result = await ProjectService.getProjectStatusHistory(projectId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Status history retrieved successfully',
+    data: result,
+  });
+});
+
+const getNoteHistory = catchAsync(async (req, res) => {
+  const { noteId } = req.params;
+  const result = await ProjectService.getNoteHistory(noteId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Note history retrieved successfully',
+    data: result,
+  });
+});
+
+const updateProjectNote = catchAsync(async (req, res) => {
+  const { noteId } = req.params;
+  const { content, comment } = req.body;
+  const userId = req.user.id;
+
+  const result = await ProjectService.updateProjectNote(
+    noteId,
+    content,
+    userId,
+    comment
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Note updated successfully',
+    data: result,
+  });
+});
+
+const deleteProjectNote = catchAsync(async (req, res) => {
+  const { noteId } = req.params;
+  
+  const result = await ProjectService.deleteProjectNote(noteId);
+  
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Note deleted successfully',
+    data: result,
+  });
+});
+
 module.exports = {
   createProject,
   getAllProjects,
@@ -168,4 +241,9 @@ module.exports = {
   updateProjectStatus,
   updatePhaseStatus,
   deleteProjectAssignment,
+  createProjectNote,
+  getProjectStatusHistory,
+  getNoteHistory,
+  updateProjectNote,
+  deleteProjectNote,
 };

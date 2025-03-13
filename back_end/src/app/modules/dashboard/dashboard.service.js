@@ -23,14 +23,12 @@ const getDashboardStats = async (userId) => {
     where: { teamId }
   });
 
-  // Get active projects count
+  // Get active projects count - using projectStatus instead of status array
   const activeProjects = await prisma.project.count({
     where: {
       teamId,
-      NOT: {
-        status: {
-          hasSome: ['COMPLETED', 'CANCELLED']
-        }
+      projectStatus: {
+        notIn: ['DELIVERED', 'CANCELLED']
       }
     }
   });
@@ -69,7 +67,7 @@ const getDashboardStats = async (userId) => {
     name: project.name,
     type: project.type,
     deadline: project.deadline,
-    status: project.status,
+    status: project.projectStatus, // Changed from status to projectStatus
     assignedUsers: project.assignments.map(assignment => ({
       id: assignment.user.id,
       name: assignment.user.name,

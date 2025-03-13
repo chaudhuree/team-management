@@ -14,6 +14,11 @@ const {
   duplicateProject,
   deleteProject,
   deleteProjectAssignment,
+  createProjectNote,
+  getProjectStatusHistory,
+  getNoteHistory,
+  updateProjectNote,
+  deleteProjectNote,
 } = require('./project.controller');
 
 const router = express.Router();
@@ -88,7 +93,36 @@ router.post(
   '/:projectId/status',
   auth(ENUM_USER_ROLE.LEADER),
   updateProjectStatus
-);  
+);
 
+router.post(
+  '/notes',
+  auth(),
+  createProjectNote
+);
+
+router.get(
+  '/:projectId/status-history',
+  auth(),
+  getProjectStatusHistory
+);
+
+router.get(
+  '/notes/:noteId/history',
+  auth(),
+  getNoteHistory
+);
+
+router.patch(
+  '/notes/:noteId',
+  auth(),
+  updateProjectNote
+);
+
+router.delete(
+  '/notes/:noteId',
+  auth(ENUM_USER_ROLE.LEADER),
+  deleteProjectNote
+);
 
 module.exports = router;
