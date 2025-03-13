@@ -1,0 +1,241 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  LEADER
+  MEMBER
+}
+
+enum ProjectType {
+  FRONTEND_ONLY
+  UI_ONLY
+  FULL_STACK
+}
+
+enum ProjectPhase {
+  FRONTEND
+  BACKEND
+  UI
+}
+
+enum ProjectPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// Team model
+model Team {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String    @unique
+  password    String
+  logo        String?   // URL of the logo
+  logoKey     String?   // Key for Digital Ocean Spaces
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  members     User[]    @relation("TeamMembers")
+  departments Department[] @relation("TeamDepartments")
+  projects    Project[] @relation("TeamProjects")
+  chatRooms   ChatRoom[] @relation("TeamChatRooms")
+  notices     Notice[]  @relation("TeamNotices")
+
+  @@map("teams")
+}
+
+// User model
+model User {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String    @unique
+  password        String
+  photo           String?   // URL of the photo
+  photoKey        String?   // Key for Digital Ocean Spaces
+  isApproved      Boolean   @default(false)
+  role            UserRole  @default(MEMBER)
+  department      Department? @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  departmentId    String?   @db.ObjectId
+  team            Team      @relation("TeamMembers", fields: [teamId], references: [id])
+  teamId          String    @db.ObjectId
+  isTeamLeader    Boolean   @default(false)
+  isOnline        Boolean   @default(false)
+  lastSeen        DateTime  @default(now())
+  resetOTP        String?
+  otpExpiration   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // Relations
+  assignedProjects ProjectAssignment[] @relation("UserAssignments")
+  chatRoomMembers  ChatRoomMember[]   @relation("UserChatRoomMember")
+  sentMessages     Message[]          @relation("UserMessages")
+  seenMessages     MessageSeen[]      @relation("UserSeenMessages")
+
+  @@map("users")
+}
+
+// Department model
+model Department {
+  id        String    @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  team      Team      @relation("TeamDepartments", fields: [teamId], references: [id])
+  teamId    String    @db.ObjectId
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  // Relations
+  members   User[]    @relation("DepartmentMembers")
+
+  @@map("departments")
+}
+
+// Project model
+model Project {
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  description     String?
+  type            ProjectType
+  price           Float
+  priority        ProjectPriority @default(MEDIUM)
+  deadline        DateTime
+  milestones      Int?
+  runningMilestone Int?
+  status          String[]
+  createdAt       DateTime  @default(now())
+  creationMonth   String    // Format: "YYYY-MM" (e.g., "2025-01")
+  updatedAt       DateTime  @updatedAt
+  team            Team      @relation("TeamProjects", fields: [teamId], references: [id])
+  teamId          String    @db.ObjectId
+  
+  // Relations
+  assignments     ProjectAssignment[] @relation("ProjectAssignments")
+  notes           Note[]             @relation("ProjectNotes")
+
+  @@map("projects")
+}
+
+// Project Assignment model
+model ProjectAssignment {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  project     Project   @relation("ProjectAssignments", fields: [projectId], references: [id])
+  projectId   String    @db.ObjectId
+  user        User      @relation("UserAssignments", fields: [userId], references: [id])
+  userId      String    @db.ObjectId
+  phase       ProjectPhase
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("project_assignments")
+}
+
+// Note model (for project notes with version control)
+model Note {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  content     String
+  version     Int       @default(1)
+  project     Project   @relation("ProjectNotes", fields: [projectId], references: [id])
+  projectId   String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("notes")
+}
+
+// Chat Room model
+model ChatRoom {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  team        Team      @relation("TeamChatRooms", fields: [teamId], references: [id])
+  teamId      String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  members     ChatRoomMember[] @relation("ChatRoomMembers")
+  messages    Message[]       @relation("ChatRoomMessages")
+
+  @@map("chat_rooms")
+}
+
+// Chat Room Member model
+model ChatRoomMember {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  chatRoom    ChatRoom  @relation("ChatRoomMembers", fields: [chatRoomId], references: [id])
+  chatRoomId  String    @db.ObjectId
+  user        User      @relation("UserChatRoomMember", fields: [userId], references: [id])
+  userId      String    @db.ObjectId
+  canAddMembers Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("chat_room_members")
+}
+
+// Message model
+model Message {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  content     String
+  imageUrl    String?
+  imageKey    String?   // Key for Digital Ocean Spaces
+  chatRoom    ChatRoom  @relation("ChatRoomMessages", fields: [chatRoomId], references: [id])
+  chatRoomId  String    @db.ObjectId
+  sender      User      @relation("UserMessages", fields: [senderId], references: [id])
+  senderId    String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  seenBy      MessageSeen[] @relation("MessageSeenBy")
+
+  @@map("messages")
+}
+
+// Message Seen model
+model MessageSeen {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  message     Message   @relation("MessageSeenBy", fields: [messageId], references: [id])
+  messageId   String    @db.ObjectId
+  user        User      @relation("UserSeenMessages", fields: [userId], references: [id])
+  userId      String    @db.ObjectId
+  seenAt      DateTime  @default(now())
+
+  @@map("message_seen")
+}
+
+// Notice model
+model Notice {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  imageUrl    String?   // URL of the image
+  imageKey    String?   // Key for Digital Ocean Spaces
+  team        Team      @relation("TeamNotices", fields: [teamId], references: [id])
+  teamId      String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("notices")
+}
+
+// Notification model
+model Notification {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  type        String    // e.g., "DEADLINE", "PROJECT_UPDATE", "CHAT", "NOTICE"
+  isRead      Boolean   @default(false)
+  userId      String    @db.ObjectId
+  createdAt   DateTime  @default(now())
+
+  @@map("notifications")
+}

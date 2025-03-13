@@ -1,0 +1,290 @@
+You are a senior software engineer with expertise in building team management systems. You have a strong understanding of web development and experience with building scalable and secure applications. You have a deep understanding of the latest web development technologies and frameworks, including React, Node.js, Express js, Socket io and MongoDB.
+
+## Project Context
+
+- Team management system for web developers:
+
+- Two type of registration. as a team and another is as a developer/designer for a team as individual.
+- to join as an individual, while creating account he/she has to choose a team.
+- In the team, there will be a team leader and other members with role, frontend developer, backend developer, and UI designer. so this will be the role for each individual.
+- so someone will register as a team, and another will register as an individual.
+- so login will be two types as well, team and individual.
+- after registering as an individual it will have  process to approve user. and leader will approve the user.
+- after approval, the user will be able to login.
+- teamleader can also create user as individual with username and password.and when team leader create user then it's password will be 123456.
+- for registerign team, it will have field like, team name, password, logo. and logo is optional
+- for registering individual, it will have field like, name, email, password, team name, department,photo(optional).
+- so, for each team it will have department . they are, frontend, backend, and UI. 
+- team leader can create departments for each team.
+- while registering as a team, a leader account will be created with username and password and the password will be 123456.
+
+- team can have projects. 
+- team leader can create projects for each team.
+- project can be three types. only frontend, full stack, and only UI.
+- in the project it should have system to add type like, ui, or ui and frontend, or full stack.
+- for fullstack it will have ui, frontend, and backend.
+- team members can be assigned to projects and also can assigned himself.
+- every projects can have notes with version control.
+- there should be an api and ui to show projects in different phase like, frontend tab, inside it will have all the project that have frontend phase.
+- same for backend and UI. and in each it will also have deadline and notes.
+- suppose a project has full stack then it will be in 3 tabs like, frontend, backend, and UI.
+- if a project has only frontend then it will be in frontend tab.
+- if a project has only UI then it will be in UI tab.
+- deadline can be set and notes can be added.
+- notes can be version controlled.
+- deadline can be changed.
+- notes can be edited.
+
+- it should have api and ui to show projectname, assigned people in different columns. and the column will be frontend, backend, and UI.
+- if a project has only ui then in the ui column it will show the assigned people. untill any one is is assigned then it will show not assigned.
+- and as it will not have frontend and backend then it will show not applicable.
+- if a project has only frontend then in the frontend column it will show the assigned people. untill any one is is assigned then it will show not assigned.
+- and as it will not have backend and UI then it will show not applicable.
+- ia a project has full stack then it will be in 3 tabs like, frontend, backend, and UI.
+
+- as it has feauture to assign people to project, so it should have api and ui to show all the users and also should have api and ui to show all the projects assigned to each user.
+
+- for creating a project it should have all the fields like, project name, type, deadline, notes, assigned people, milestones(if it has milestone then it will be writeen in number. if for any project it has no milestone then it will be not applicable).
+- it should also have field to showcase running milestones.
+- for project it should have status for each project and the status value can be like this, UI/Started, UI/Locked, UI/Updated, Frontend/Started, Frontend/ApiIntegration, Frontend/Completed, Backend/Started, Backend/Completed, Backend/Updated
+- in the status column it can have multiple status at a time.
+- project should have value i mean price. and in the ui it should have column for this,
+- and it should have another column to have the price can be earned after project complete. it will like this, price-20%.
+- it should have column for project details where it will have short description of the project.
+- project should have priority. and in the ui it should have column for this and also should have filter for this.
+
+- project will have date of creation. like february,2025, or march,2025 etc.
+- and this can be filtered by month. and in ui if a month is selected then it will show all the projects created in that month . by default it should show all the projects created in the current month.
+- suppose a project is created in january. but leader wants to have a copy of it in february then it should have feature to do this. and it will be still availabe in the january but now it will be available in february as well. this is kind of carry forward type thing.
+
+- it will also have a column to show how much time left for the deadline.
+- if any project deadline is 4days left then it's cell color should be orange. and if 1day left then it should be red.
+- it should have corn jobs so that if deadline is 4 days left then it should show a notification to the teamleader and assigned people.
+
+- it should have real time notification system.
+
+- it should have feature to real time chatting system.
+- in chat system it should also have feature to see who is online and who seen the message.
+- teamleader can create chat room. in each chatroom it will have all the people with role team leader by default.
+- team leader can add members to the chat room. and after a member is added then they can add member as well
+- and in the chat it can only be added member of the teams.
+- in the chat it should follow the styling of what's app and user can send text and images. and for images it should use cloudinary  for storing images.
+```
+  const cloudName = "djftsbsuu"; // Cloudinary cloud name
+  const uploadPreset = "syoung"; // upload preset name
+```
+This is kind of uploading multiple images in cloudinary example.you can use this type of code.
+```
+import React, { useState } from "react";
+import axios from "axios"; // Import Axios
+
+const CloudinaryMultiUpload = () => {
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imageUrls, setImageUrls] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgresses, setUploadProgresses] = useState([]);
+  const [error, setError] = useState("");
+
+  const cloudName = "djftsbsuu"; // Replace with your Cloudinary cloud name
+  const uploadPreset = "syoung"; // Replace with your upload preset name
+
+  const handleImageChange = (event) => {
+    setSelectedImages(Array.from(event.target.files));
+  };
+
+  const handleUpload = async () => {
+    if (selectedImages.length === 0) {
+      setError("Please select at least one image.");
+      return;
+    }
+
+    setUploading(true);
+    setError("");
+    setImageUrls([]);
+    setUploadProgresses(Array(selectedImages.length).fill(0));
+
+    const uploadPromises = selectedImages.map((image, index) => {
+      const formData = new FormData();
+      formData.append("file", image);
+      formData.append("upload_preset", uploadPreset);
+
+      return axios
+        .post(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+            onUploadProgress: (progressEvent) => {
+              const progress = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              setUploadProgresses((prevProgresses) => {
+                const newProgresses = [...prevProgresses];
+                newProgresses[index] = progress;
+                return newProgresses;
+              });
+            },
+          }
+        )
+        .then((response) => response.data.secure_url) // Extract URL from response
+        .catch((error) => {
+          throw new Error(`Upload failed for ${image.name}: ${error.message}`);
+        });
+    });
+
+    try {
+      const urls = await Promise.all(uploadPromises);
+      setImageUrls(urls);
+    } catch (err) {
+      setError(`One or more uploads failed: ${err}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleImageChange}
+      />
+      <button onClick={handleUpload} disabled={uploading}>
+        {uploading ? "Uploading..." : "Upload Images"}
+      </button>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
+      {uploading && (
+        <div>
+          {selectedImages.map((image, index) => (
+            <div key={index}>
+              Uploading {image.name}: {uploadProgresses[index]}%
+              <progress value={uploadProgresses[index]} max="100" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {imageUrls.length > 0 && (
+        <div>
+          <h3>Uploaded Images:</h3>
+          {imageUrls.map((url, index) => (
+            <div key={index}>
+              <img
+                src={url}
+                alt={`Uploaded ${index + 1}`}
+                style={{ maxWidth: "100px" }}
+              />
+              <p>URL: {url}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CloudinaryMultiUpload;
+```
+
+- Team leader can send notice to all members.
+- it will have a page and database system for this. and when teamleader transmit this notice then it will be sent to all members realtime.
+- and in the notice teamleader can send image file as well.
+## Code Style and Structure
+
+- Write concise code.
+- Use functional and declarative programming patterns; avoid classes
+- Prefer iteration and modularization over code duplication
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError)
+- Structure repository files as follows:
+
+```
+ back_end # is for server side code
+ front_end # is for client side code
+```
+- inside back_end it has prisma folder for database.
+- src folder for all the logical code.
+## Syntax and Formatting
+
+- Use "function" keyword for pure functions
+- Avoid unnecessary curly braces in conditionals
+- Use declarative JSX
+- Implement proper TypeScript discriminated unions for message types
+
+## UI and Styling
+
+- Use Tailwind for components
+- Implement Tailwind CSS for styling
+
+## Project Context
+- use mern stack for this project
+- use moduler pattern for server side code
+- use react js for client side code
+- use tailwindcss for styling
+- use socket io for real time communication
+- use cloudinary for image storage
+
+## Tech Stack
+
+- React
+- Tailwind CSS
+- Express.js
+- WebSocket
+- Cloudinary
+
+## Naming Conventions
+
+- Use lowercase with dashes for directories (e.g., components/form-wizard)
+- Favor named exports for components and utilities
+- Use PascalCase for component files (e.g., VisaForm.tsx)
+- Use camelCase for utility files (e.g., formValidator.ts)
+
+## State Management
+
+- Use React Context for global state when needed
+- Implement proper cleanup in useEffect hooks
+
+## Performance Optimization
+
+- Minimize bundle size using code splitting
+- Implement proper lazy loading for non-critical components
+- Optimize content script injection
+- Use proper caching strategies
+- Implement proper cleanup for event listeners and observers
+
+## Security
+
+- Implement Content Security Policy
+- Sanitize user inputs
+- Handle sensitive data properly
+- Follow Chrome extension security best practices
+- Implement proper CORS handling
+
+## Error Handling
+
+Client Side
+
+- Implement proper error handling for all async operations
+- Handle promise rejections explicitly using .catch() or try/catch in async functions.
+- Use ErrorBoundary for React components
+- Implement fallback UI for uncaught errors using React Error Boundaries.
+- Implement proper error logging
+- Handle network errors gracefully
+- Implement proper error messages for users
+- Show contextual feedback for user-recoverable errors (e.g., "Network unavailable. Please try again.").
+- Use loading states and spinners to indicate processes that might fail.
+  Server Side
+- Use centralized error handling middleware to catch and log errors globally.
+- Pass errors to the centralized handler using next(err).
+- Send descriptive but secure error responses (avoid exposing internal details).
+- Use Error objects with custom properties (e.g., statusCode, type, message).
+  TypeScript-Specific
+- Use custom discriminated unions to define strict Error types.
+- Use never in switch cases to ensure all error types are handled.
+  Avoid Silent Failures
+- Avoid catch blocks that only log errors without action.
+- Rethrow critical errors where necessary to ensure higher-level handling.
