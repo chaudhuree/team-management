@@ -9,11 +9,12 @@ export const createProject = createAsyncThunk(
       const response = await axios.post(`/projects/create`, projectData);
       return response.data;
     } catch (error) {
+      console.error('API error:', error); // Log API errors
       return rejectWithValue(error.response?.data || { message: 'Failed to create project' });
     }
   }
 );
-
+// ... rest of the slice
 export const getAllProjects = createAsyncThunk(
   'project/getAll',
   async (filters, { rejectWithValue }) => {
@@ -25,7 +26,6 @@ export const getAllProjects = createAsyncThunk(
     }
   }
 );
-
 export const getProjectsByPhase = createAsyncThunk(
   'project/getByPhase',
   async (phase, { rejectWithValue }) => {
@@ -37,7 +37,6 @@ export const getProjectsByPhase = createAsyncThunk(
     }
   }
 );
-
 export const getProjectsByMonth = createAsyncThunk(
   'project/getByMonth',
   async (month, { rejectWithValue }) => {
@@ -49,7 +48,6 @@ export const getProjectsByMonth = createAsyncThunk(
     }
   }
 );
-
 export const updateProject = createAsyncThunk(
   'project/update',
   async ({ id, data }, { rejectWithValue }) => {
@@ -61,7 +59,6 @@ export const updateProject = createAsyncThunk(
     }
   }
 );
-
 export const assignUserToProject = createAsyncThunk(
   'project/assignUser',
   async (assignmentData, { rejectWithValue }) => {
@@ -73,7 +70,6 @@ export const assignUserToProject = createAsyncThunk(
     }
   }
 );
-
 export const getUserProjects = createAsyncThunk(
   'project/getUserProjects',
   async (userId, { rejectWithValue }) => {
@@ -85,7 +81,6 @@ export const getUserProjects = createAsyncThunk(
     }
   }
 );
-
 export const duplicateProject = createAsyncThunk(
   'project/duplicate',
   async ({ projectId, newMonth }, { rejectWithValue }) => {
@@ -100,7 +95,6 @@ export const duplicateProject = createAsyncThunk(
     }
   }
 );
-
 export const deleteProject = createAsyncThunk(
   'project/delete',
   async (id, { rejectWithValue }) => {
@@ -126,7 +120,6 @@ const initialState = {
     search: '',
   },
 };
-
 const projectSlice = createSlice({
   name: 'project',
   initialState,

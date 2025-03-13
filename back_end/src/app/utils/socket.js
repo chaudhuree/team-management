@@ -86,8 +86,14 @@ const initializeSocket = (server) => {
 
     // Handle disconnection
     socket.on('disconnect', async () => {
-      console.log(`User disconnected: ${socket.userId}`);
-      await ChatService.updateUserOnlineStatus(socket.userId, false);
+      try {
+        const user = await ChatService.updateUserOnlineStatus(socket.userId, false);
+        if (user?.team?.id) {
+          io.to(user.team.id).emit('userOffline', user.id);
+        }
+      } catch (error) {
+        console.error('Error updating user online status:', error);
+      }
     });
   });
 

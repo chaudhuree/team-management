@@ -63,10 +63,16 @@ export const registerIndividual = createAsyncThunk(
   'auth/registerIndividual',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`${API_URL}/users/register`, userData);
+      const response = await axios.post('/users/register', userData, {
+        headers: {
+          'Content-Type': userData instanceof FormData ? 'multipart/form-data' : 'application/json',
+        },
+      });
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: error.message });
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to register'
+      );
     }
   }
 );

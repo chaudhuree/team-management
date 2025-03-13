@@ -32,7 +32,7 @@ axios.interceptors.request.use((config) => {
 
 function App() {
   const dispatch = useDispatch();
-  const { token, isAuthenticated, isLoading } = useSelector((state) => state.auth);
+  const { token, isAuthenticated, isLoading, user } = useSelector((state) => state.auth);
   const [authChecked, setAuthChecked] = useState(false);
 
   // Check authentication state on app load
@@ -55,13 +55,19 @@ function App() {
     let socket;
     if (token && isAuthenticated) {
       socket = dispatch(initializeSocket(token));
+      
+      // Join team room when authenticated
+      if (socket && user?.teamId) {
+        socket.emit('joinTeam', user.teamId);
+      }
     }
+    
     return () => {
       if (socket) {
         socket.disconnect();
       }
     };
-  }, [dispatch, token, isAuthenticated]);
+  }, [dispatch, token, isAuthenticated, user?.teamId]);
 
   // Show loading spinner while checking auth state
   if (isLoading || !authChecked) {

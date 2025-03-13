@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createProject } from '../../store/slices/projectSlice';
 import Modal from '../common/Modal';
+import toast from 'react-hot-toast'; // Import toast
 
-const CreateProjectModal = ({ isOpen, onClose }) => {
+const CreateProjectModal = ({ isOpen, onClose, teamMembers, departments, isLoading }) => {
   const dispatch = useDispatch();
-  const { teamMembers } = useSelector((state) => state.team);
+  const { teamMembers: existingTeamMembers } = useSelector((state) => state.team);
+
   const [formData, setFormData] = useState({
     name: '',
     type: 'frontend',
@@ -15,7 +17,8 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
     price: '',
     priority: 'medium',
     description: '',
-    assignedPeople: [],
+    teamId: useSelector(state => state.auth.user.teamId) || '', // Get teamId here
+    assignedUsers: [],
   });
 
   const projectTypes = [
@@ -32,10 +35,14 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    toast.info('Submitting project...', { id: 'submit' });
+
     try {
       await dispatch(createProject(formData)).unwrap();
+      toast.success('Project created successfully!', { id: 'submit' });
       onClose();
     } catch (error) {
+      toast.error(`Failed to create project: ${error.message || 'Unknown error'}`, { id: 'submit' });
       console.error('Failed to create project:', error);
     }
   };
@@ -47,13 +54,23 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
 
   const handleAssignmentChange = (e, memberId) => {
     const isChecked = e.target.checked;
-    setFormData((prev) => ({
-      ...prev,
-      assignedPeople: isChecked
-        ? [...prev.assignedPeople, memberId]
-        : prev.assignedPeople.filter((id) => id !== memberId),
-    }));
+    setFormData((prev) => {
+      const updatedAssignedUsers = isChecked
+        ? [...prev.assignedUsers, { userId: memberId, phase: 'UI' }] // Example: Assign to UI phase
+        : prev.assignedUsers.filter((user) => user.userId !== memberId);
+      return { ...prev, assignedUsers: updatedAssignedUsers };
+    });
   };
+
+  if (isLoading) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Create New Project">
+        <div className="flex justify-center items-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Create New Project">
@@ -190,25 +207,54 @@ const CreateProjectModal = ({ isOpen, onClose }) => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Assign Team Members
           </label>
-          <div className="max-h-60 overflow-y-auto border rounded-md p-3">
-            {teamMembers.map((member) => (
-              <div key={member.id} className="flex items-center space-x-3 py-2">
-                <input
-                  type="checkbox"
-                  id={`member-${member.id}`}
-                  checked={formData.assignedPeople.includes(member.id)}
-                  onChange={(e) => handleAssignmentChange(e, member.id)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor={`member-${member.id}`}
-                  className="text-sm text-gray-700"
+          {teamMembers && teamMembers.length > 0 ? (
+            <div className="max-h-60 overflow-y-auto border rounded-md p-3">
+              {teamMembers.map((member) => (
+                <div
+                  key={member.id}
+                  className="flex items-center space-x-3 py-2"
                 >
-                  {member.name} - {member.department}
-                </label>
-              </div>
-            ))}
-          </div>
+                  <input
+                    type="checkbox"
+                    id={`member-${member.id}`}
+                    checked={formData.assignedUsers.some(user => user.userId === member.id)}
+                    onChange={(e) => handleAssignmentChange(e, member.id)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <div className="flex items-center">
+                    {member.photo ? (
+                      <img
+                        className="h-8 w-8 rounded-full mr-3"
+                        src={member.photo}
+                        alt={member.name}
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center">
+                        <span className="text-gray-500 text-sm">
+                          {member.name?.charAt(0).toUpperCase() || 'U'}
+                        </span>
+                      </div>
+                    )}
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900">
+                        {member.name}
+                        {member.isTeamLeader && (
+                          <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                            Leader
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-gray-500">
+                        {member.department ? member.department.name : 'Not Assigned'} - {member.role || 'Member'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No team members available.</p>
+          )}
         </div>
 
         <div className="flex justify-end space-x-3 pt-4">

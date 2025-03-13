@@ -3,82 +3,72 @@ const AppError = require('../../errors/AppError');
 const bcrypt = require('bcryptjs');
 const { createToken } = require('../../utils/jwt.utils');
 const generateOTP = require('../../utils/generateOTP');
+const ApiError = require('../../errors/ApiError');
+const httpStatus = require('http-status');
 
 /**
  * Register a new individual user
  */
 const registerIndividual = async (userData) => {
-  const { name, email, password, teamId, departmentId, photo } = userData;
+  // Validate user data
+  if (!userData.name || !userData.email || !userData.password || !userData.teamName) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Please provide all required fields');
+  }
 
   // Check if user already exists
   const existingUser = await prisma.user.findUnique({
-    where: {
-      email,
-    },
+    where: { email: userData.email },
   });
 
   if (existingUser) {
-    throw new AppError('User already exists with this email', 400);
+    throw new ApiError(httpStatus.BAD_REQUEST, 'User already exists');
   }
 
   // Check if team exists
   const team = await prisma.team.findUnique({
-    where: {
-      id: teamId,
-    },
+    where: { name: userData.teamName },
   });
 
   if (!team) {
-    throw new AppError('Team not found', 404);
+    throw new ApiError(httpStatus.NOT_FOUND, 'Team not found');
   }
 
-  // Check if department exists and belongs to the team
-  if (departmentId) {
-    const department = await prisma.department.findFirst({
+  // Find the department if specified
+  let department;
+  if (userData.department) {
+    department = await prisma.department.findFirst({
       where: {
-        id: departmentId,
-        teamId,
-      },
+        name: userData.department,
+        teamId: team.id
+      }
     });
 
     if (!department) {
-      throw new AppError('Department not found or does not belong to the team', 404);
+      throw new ApiError(httpStatus.NOT_FOUND, 'Department not found in the specified team');
     }
   }
 
   // Hash password
-  const hashedPassword = await bcrypt.hash(password, 12);
+  const hashedPassword = await bcrypt.hash(userData.password, 10);
 
   // Create user
   const user = await prisma.user.create({
     data: {
-      name,
-      email,
+      name: userData.name,
+      email: userData.email,
       password: hashedPassword,
-      teamId,
-      departmentId,
-      photo,
-      isApproved: false, // Requires team leader approval
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      isApproved: true,
       team: {
-        select: {
-          id: true,
-          name: true,
-        },
+        connect: { id: team.id }
       },
-      department: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      createdAt: true,
+      department: department ? {
+        connect: { id: department.id }
+      } : undefined,
+      photo: userData.photo,
+      photoKey: userData.photoKey,
+    },
+    include: {
+      team: true,
+      department: true,
     },
   });
 
@@ -293,9 +283,10 @@ const approveUser = async (userId) => {
     },
   });
 
-  // Create notification for the approved user
+  // Create notification for the approved user with title
   await prisma.notification.create({
     data: {
+      title: 'Account Approved',
       content: 'Your account has been approved. You can now log in.',
       type: 'APPROVAL',
       userId,

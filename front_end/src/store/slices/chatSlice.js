@@ -5,11 +5,9 @@ import { io } from 'socket.io-client';
 // Initialize Socket.IO connection
 export const initializeSocket = (token) => (dispatch) => {
   const socket = io('http://localhost:4000', {
-    auth: { token },
-    transports: ['websocket'],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
+    auth: {
+      token
+    }
   });
 
   socket.on('connect', () => {
@@ -17,129 +15,112 @@ export const initializeSocket = (token) => (dispatch) => {
     dispatch(setSocket(socket));
   });
 
-  socket.on('connect_error', (error) => {
-    console.error('Socket connection error:', error);
-  });
-
   socket.on('newMessage', (message) => {
-    dispatch(addMessage({ roomId: message.chatRoomId, message }));
+    dispatch(addMessage(message));
   });
 
-  socket.on('messageSeen', ({ messageId, userId, chatRoomId }) => {
-    dispatch(updateMessageSeen({ roomId: chatRoomId, messageId, userId }));
+  socket.on('messageSeen', (seenData) => {
+    dispatch(updateMessageSeen(seenData));
   });
 
-  socket.on('userStatusChange', ({ userId, isOnline }) => {
-    dispatch(updateUserStatus({ userId, isOnline }));
-  });
-
-  socket.on('newChatRoom', (chatRoom) => {
-    dispatch(addChatRoom(chatRoom));
+  socket.on('newChatRoom', (room) => {
+    dispatch(addChatRoom(room));
   });
 
   socket.on('newMember', (member) => {
-    dispatch(addMember(member));
+    dispatch(updateChatRoomMembers(member));
   });
 
-  socket.on('deadlineAlert', (alert) => {
-    dispatch(addDeadlineAlert(alert));
+  socket.on('userStatusChange', (statusData) => {
+    dispatch(updateUserStatus(statusData));
   });
 
   return socket;
 };
 
-export const createChatRoom = createAsyncThunk(
-  'chat/createRoom',
-  async (roomData, { rejectWithValue }) => {
-    try {
-      const response = await axios.post(`/chat/rooms/create`, roomData);
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to create chat room' });
-    }
-  }
-);
-
-export const getChatRooms = createAsyncThunk(
-  'chat/getRooms',
+export const fetchChatRooms = createAsyncThunk(
+  'chat/fetchChatRooms',
   async (teamId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/chat/rooms/${teamId}`);
-      return response.data;
+      const response = await axios.get(`/chats/rooms/${teamId}`);
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to fetch chat rooms' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch chat rooms');
     }
   }
 );
 
-export const addMemberToChatRoom = createAsyncThunk(
-  'chat/addMember',
-  async (memberData, { rejectWithValue }) => {
+export const createChatRoom = createAsyncThunk(
+  'chat/createChatRoom',
+  async (roomData, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`/chat/rooms/members/add`, memberData);
-      return response.data;
+      const response = await axios.post('/chats/rooms/create', roomData);
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to add member' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to create chat room');
     }
   }
 );
 
-export const getChatRoomMessages = createAsyncThunk(
-  'chat/getMessages',
+export const fetchChatMessages = createAsyncThunk(
+  'chat/fetchChatMessages',
   async (chatRoomId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/chat/messages/${chatRoomId}`);
-      return response.data;
+      const response = await axios.get(`/chats/messages/${chatRoomId}`);
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to fetch messages' });
-    }
-  }
-);
-
-export const sendMessage = createAsyncThunk(
-  'chat/sendMessage',
-  async ({ chatRoomId, content, imageFile }, { getState, rejectWithValue }) => {
-    try {
-      const formData = new FormData();
-      formData.append('content', content);
-      
-      if (imageFile) {
-        formData.append('imageFile', imageFile);
-      }
-      
-      const response = await axios.post(`/chat/messages/${chatRoomId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      return response.data;
-    } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to send message' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch messages');
     }
   }
 );
 
 export const markMessageAsSeen = createAsyncThunk(
-  'chat/markMessageSeen',
-  async (messageData, { rejectWithValue }) => {
+  'chat/markMessageAsSeen',
+  async (data, { rejectWithValue }) => {
     try {
-      const response = await axios.post(`/chat/messages/seen`, messageData);
-      return response.data;
+      const response = await axios.post('/chats/messages/seen', data);
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to mark message as seen' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to mark message as seen');
     }
   }
 );
 
-export const getOnlineUsers = createAsyncThunk(
-  'chat/getOnlineUsers',
+export const addMemberToChatRoom = createAsyncThunk(
+  'chat/addMemberToChatRoom',
+  async (memberData, { rejectWithValue }) => {
+    try {
+      const response = await axios.post('/chats/rooms/members/add', memberData);
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to add member to chat room');
+    }
+  }
+);
+
+export const fetchOnlineUsers = createAsyncThunk(
+  'chat/fetchOnlineUsers',
   async (teamId, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/chat/online-users/${teamId}`);
-      return response.data;
+      const response = await axios.get(`/chats/online-users/${teamId}`);
+      return response.data.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to fetch online users' });
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch online users');
+    }
+  }
+);
+
+// Add this async thunk for sending messages
+export const sendMessage = createAsyncThunk(
+  'chat/sendMessage',
+  async (messageData, { rejectWithValue }) => {
+    try {
+      // For socket-based message sending, we don't need an API call
+      // The actual message sending happens through socket.io
+      // But we'll keep this thunk for consistency and potential future API integration
+      return messageData;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to send message');
     }
   }
 );
@@ -236,15 +217,15 @@ const chatSlice = createSlice({
         state.error = action.payload?.message || 'Failed to create chat room';
       })
       // Get Chat Rooms
-      .addCase(getChatRooms.pending, (state) => {
+      .addCase(fetchChatRooms.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(getChatRooms.fulfilled, (state, action) => {
+      .addCase(fetchChatRooms.fulfilled, (state, action) => {
         state.isLoading = false;
         state.chatRooms = action.payload.data;
       })
-      .addCase(getChatRooms.rejected, (state, action) => {
+      .addCase(fetchChatRooms.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload?.message || 'Failed to fetch chat rooms';
       })
@@ -256,12 +237,12 @@ const chatSlice = createSlice({
         }
       })
       // Get Chat Room Messages
-      .addCase(getChatRoomMessages.fulfilled, (state, action) => {
+      .addCase(fetchChatMessages.fulfilled, (state, action) => {
         const { chatRoomId } = action.meta.arg;
         state.messages[chatRoomId] = action.payload.data;
       })
       // Send Message
-      .addCase(sendMessage.fulfilled, (state, action) => {
+      .addCase(markMessageAsSeen.fulfilled, (state, action) => {
         const message = action.payload.data;
         if (!state.messages[message.chatRoomId]) {
           state.messages[message.chatRoomId] = [];
@@ -269,8 +250,20 @@ const chatSlice = createSlice({
         state.messages[message.chatRoomId].push(message);
       })
       // Get Online Users
-      .addCase(getOnlineUsers.fulfilled, (state, action) => {
+      .addCase(fetchOnlineUsers.fulfilled, (state, action) => {
         state.onlineUsers = action.payload.data;
+      })
+      // Add these cases for the sendMessage thunk
+      .addCase(sendMessage.pending, (state) => {
+        state.sendingMessage = true;
+      })
+      .addCase(sendMessage.fulfilled, (state, action) => {
+        state.sendingMessage = false;
+        // The actual message will be added via the socket event handler
+      })
+      .addCase(sendMessage.rejected, (state, action) => {
+        state.sendingMessage = false;
+        state.error = action.payload;
       });
   },
 });

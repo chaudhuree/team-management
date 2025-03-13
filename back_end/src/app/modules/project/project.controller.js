@@ -3,14 +3,25 @@ const catchAsync = require('../../utils/catchAsync');
 const sendResponse = require('../../utils/sendResponse');
 const { ProjectService } = require('./project.service');
 
+// src/app/modules/project/project.controller.js
 const createProject = catchAsync(async (req, res) => {
-  const result = await ProjectService.createProject(req.body);
-  sendResponse(res, {
-    statusCode: httpStatus.CREATED,
-    success: true,
-    message: 'Project created successfully',
-    data: result,
-  });
+  try {
+    const result = await ProjectService.createProject(req.body);
+    sendResponse(res, {
+      statusCode: httpStatus.CREATED,
+      success: true,
+      message: 'Project created successfully',
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error creating project:', error); // Log the error
+    sendResponse(res, {
+      statusCode: httpStatus.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: 'Failed to create project',
+      error: error, // Include the error for debugging
+    });
+  }
 });
 
 const getAllProjects = catchAsync(async (req, res) => {

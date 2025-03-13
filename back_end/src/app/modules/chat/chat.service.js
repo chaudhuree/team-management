@@ -226,25 +226,49 @@ const getOnlineUsers = async (teamId) => {
 };
 
 const updateUserOnlineStatus = async (userId, isOnline) => {
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: {
-      isOnline,
-      lastSeen: new Date(),
-    },
-    include: {
-      team: true,
-    },
-  });
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const user = await prisma.user.update({
+        where: { id: userId },
+        data: { isOnline },
+        select: {
+          id: true,
+          name: true,
+          isOnline: true,
+          team: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+      
+      // Emit online status change to team members
+      getIO().to(`team_${user.teamId}`).emit('userStatusChange', {
+        userId,
+        isOnline,
+        lastSeen: user.lastSeen,
+      });
 
-  // Emit online status change to team members
-  getIO().to(`team_${user.teamId}`).emit('userStatusChange', {
-    userId,
-    isOnline,
-    lastSeen: user.lastSeen,
-  });
-
-  return user;
+      return user;
+    } catch (error) {
+      // Check if it's a write conflict error
+      if (error.code === 'P2034') {
+        retryCount++;
+        if (retryCount === maxRetries) {
+          throw new Error('Failed to update user online status after multiple retries');
+        }
+        // Wait for a short random time before retrying
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 1000));
+        continue;
+      }
+      // If it's not a write conflict error, throw it
+      throw error;
+    }
+  }
 };
 
 module.exports.ChatService = {

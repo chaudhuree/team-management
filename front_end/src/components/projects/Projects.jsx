@@ -1,29 +1,78 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAllProjects } from '../../store/slices/projectSlice';
-import { 
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import {
   FaPlus as PlusIcon,
   FaFilter as FunnelIcon,
-  FaCalendarAlt as CalendarIcon 
+  FaCalendarAlt as CalendarIcon,
 } from 'react-icons/fa';
 import CreateProjectModal from './CreateProjectModal';
+
+const API_URL = 'http://localhost:4000/api/v1';
 
 const Projects = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { projects, isLoading, error } = useSelector((state) => state.project);
-  const { user } = useSelector((state) => state.auth);
+  const { projects, isLoading, error } = useSelector(
+    (state) => state.project
+  );
+  // const { user } = useSelector((state) => state.auth);
+  const { token, user, team } = useSelector((state) => state.auth);
+  const [members, setMembers] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [isTeamLoading, setIsTeamLoading] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
   const [selectedType, setSelectedType] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
-
+console.log({user,team})
   useEffect(() => {
     dispatch(getAllProjects({ month: selectedMonth }));
   }, [dispatch, selectedMonth]);
+
+  const fetchTeamMembers = async () => {
+    if (!token || !team?.id) {
+      return;
+    }
+
+    setIsTeamLoading(true);
+    try {
+      const [membersRes, departmentsRes] = await Promise.all([
+        axios.get(`${API_URL}/users/team-members`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get(`${API_URL}/departments`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ]);
+      
+      const membersData = membersRes.data?.data || [];
+      const departmentsData = departmentsRes.data?.data || [];
+      
+      console.log('Members data:', membersData);
+      console.log('Departments data:', departmentsData);
+      
+      setMembers(Array.isArray(membersData) ? membersData : []);
+      setDepartments(Array.isArray(departmentsData) ? departmentsData : []);
+    } catch (error) {
+      console.error('Error fetching team data:', error);
+      toast.error(error.response?.data?.message || 'Error fetching team members');
+    } finally {
+      setIsTeamLoading(false);
+    }
+  };
+
+  //Added these to console log all of it
+  console.log("Projects Component Rendered");
+  console.log("User:", user);
+  console.log("Members:", members);
+  console.log("Departments:", departments);
+  console.log("isCreateModalOpen:", isCreateModalOpen);
 
   const getDeadlineStatus = (deadline) => {
     const daysLeft = Math.ceil(
@@ -34,14 +83,16 @@ const Projects = () => {
     return 'bg-green-100 text-green-800';
   };
 
-  const filteredProjects = projects ? projects.filter((project) => {
-    const typeMatch =
-      selectedType === 'all' || project.type.toLowerCase() === selectedType;
-    const priorityMatch =
-      selectedPriority === 'all' ||
-      project.priority.toLowerCase() === selectedPriority;
-    return typeMatch && priorityMatch;
-  }) : [];
+  const filteredProjects = projects
+    ? projects.filter((project) => {
+        const typeMatch =
+          selectedType === 'all' || project.type.toLowerCase() === selectedType;
+        const priorityMatch =
+          selectedPriority === 'all' ||
+          project.priority.toLowerCase() === selectedPriority;
+        return typeMatch && priorityMatch;
+      })
+    : [];
 
   if (isLoading) {
     return (
@@ -53,11 +104,15 @@ const Projects = () => {
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-600">
-        Error: {error}
-      </div>
+      <div className="text-center py-8 text-red-600">Error: {error}</div>
     );
   }
+
+  const handleCreateProjectClick = async () => {
+    console.log("Create Project button clicked!");
+    await fetchTeamMembers();
+    setIsCreateModalOpen(true);
+  };
 
   return (
     <div className="p-6">
@@ -65,7 +120,7 @@ const Projects = () => {
         <h1 className="text-2xl font-bold">Projects</h1>
         {user?.role === 'LEADER' && (
           <button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={handleCreateProjectClick}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             <PlusIcon className="h-5 w-5 mr-2" />
@@ -117,9 +172,7 @@ const Projects = () => {
       {/* Projects Table */}
       <div className="bg-white rounded-lg shadow overflow-x-auto">
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No projects found
-          </div>
+          <div className="text-center py-8 text-gray-500">No projects found</div>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -198,13 +251,15 @@ const Projects = () => {
           </table>
         )}
       </div>
-
-      {isCreateModalOpen && (
-        <CreateProjectModal
-          isOpen={isCreateModalOpen}
-          onClose={() => setIsCreateModalOpen(false)}
-        />
-      )}
+        {isCreateModalOpen && (
+          <CreateProjectModal
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+            teamMembers={members}
+            departments={departments}
+            isLoading={isTeamLoading}
+          />
+        )}
     </div>
   );
 };

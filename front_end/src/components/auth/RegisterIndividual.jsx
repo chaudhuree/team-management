@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerIndividual } from '../../store/slices/authSlice';
+import { toast } from 'react-hot-toast';
 import { FaUser as UserIcon, FaEnvelope as EnvelopeIcon, FaLock as LockIcon, FaUsers as UserGroupIcon } from 'react-icons/fa';
 
 const RegisterIndividual = () => {
@@ -13,20 +14,25 @@ const RegisterIndividual = () => {
     email: '',
     password: '',
     teamName: '',
-    department: 'FRONTEND',
+    department: 'Frontend',
     photo: null,
   });
 
   const departments = [
-    { value: 'FRONTEND', label: 'Frontend Developer' },
-    { value: 'BACKEND', label: 'Backend Developer' },
+    { value: 'Frontend', label: 'Frontend Developer' },
+    { value: 'Backend', label: 'Backend Developer' },
     { value: 'UI', label: 'UI Designer' },
   ];
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
     if (name === 'photo' && files.length > 0) {
-      setFormData((prev) => ({ ...prev, photo: files[0] }));
+      const file = files[0];
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setFormData((prev) => ({ ...prev, photo: file }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
@@ -34,11 +40,30 @@ const RegisterIndividual = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
     try {
-      await dispatch(registerIndividual(formData)).unwrap();
+      if (!formData.name || !formData.email || !formData.password || !formData.teamName) {
+        toast.error('Please fill in all required fields');
+        return;
+      }
+
+      let dataToSend;
+      if (formData.photo) {
+        dataToSend = new FormData();
+        Object.keys(formData).forEach(key => {
+          if (formData[key] !== null) {
+            dataToSend.append(key, formData[key]);
+          }
+        });
+      } else {
+        dataToSend = formData;
+      }
+
+      await dispatch(registerIndividual(dataToSend)).unwrap();
+      toast.success('Registration successful! Please wait for team leader approval.');
       navigate('/login');
     } catch (error) {
-      console.error('Registration failed:', error);
+      toast.error(error.message || 'Registration failed');
     }
   };
 
