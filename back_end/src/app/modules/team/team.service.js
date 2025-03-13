@@ -2,6 +2,8 @@ const prisma = require('../../utils/prisma');
 const AppError = require('../../errors/AppError');
 const bcrypt = require('bcryptjs');
 const { createToken } = require('../../utils/jwt.utils');
+const httpStatus = require('http-status');
+const ApiError = require('../../errors/ApiError');
 
 /**
  * Register a new team with a team leader
@@ -212,10 +214,14 @@ const createDepartment = async (teamId, departmentData) => {
 };
 
 /**
- * Update team details
+ * Update team details - used for the /:id route
  */
 const updateTeam = async (teamId, updateData) => {
-  const { name, logo } = updateData;
+  console.log('Updating team with ID:', teamId, 'and data:', updateData);
+  
+  if (!teamId || teamId === 'profile') {
+    throw new AppError('Invalid team ID', 400);
+  }
 
   // Check if team exists
   const team = await prisma.team.findUnique({
@@ -229,14 +235,14 @@ const updateTeam = async (teamId, updateData) => {
   }
 
   // If name is being updated, check if it's already taken
-  if (name && name !== team.name) {
+  if (updateData.name && updateData.name !== team.name) {
     const existingTeam = await prisma.team.findUnique({
       where: {
-        name,
+        name: updateData.name,
       },
     });
 
-    if (existingTeam) {
+    if (existingTeam && existingTeam.id !== teamId) {
       throw new AppError('Team name already exists', 400);
     }
   }
@@ -246,8 +252,8 @@ const updateTeam = async (teamId, updateData) => {
       id: teamId,
     },
     data: {
-      name,
-      logo,
+      name: updateData.name || team.name,
+      logo: updateData.logo || team.logo,
     },
   });
 
@@ -255,7 +261,7 @@ const updateTeam = async (teamId, updateData) => {
 };
 
 /**
- * Change team password
+ * Change team password - used for the /:id/change-password route
  */
 const changeTeamPassword = async (teamId, passwordData) => {
   const { currentPassword, newPassword } = passwordData;
@@ -293,6 +299,79 @@ const changeTeamPassword = async (teamId, passwordData) => {
   return { message: 'Team password updated successfully' };
 };
 
+/**
+ * Update team profile - used for the /profile route
+ */
+const updateProfile = async (teamId, updateData) => {
+  console.log('Updating team profile with ID:', teamId, 'and data:', updateData);
+  
+  try {
+    if (!teamId) {
+      throw new AppError('Team ID is required', 400);
+    }
+
+    // Find the team
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+    });
+
+    if (!team) {
+      throw new AppError('Team not found', 404);
+    }
+
+    // Update the team
+    const updatedTeam = await prisma.team.update({
+      where: { id: teamId },
+      data: {
+        name: updateData.name || team.name,
+        logo: updateData.logo || team.logo,
+      },
+    });
+
+    return {
+      id: updatedTeam.id,
+      name: updatedTeam.name,
+      logo: updatedTeam.logo,
+    };
+  } catch (error) {
+    console.error('Error updating team profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Change team password - used for the /change-password route
+ */
+const changePassword = async (teamId, passwordData) => {
+  const { currentPassword, newPassword } = passwordData;
+
+  if (!teamId) {
+    throw new AppError('Team ID is required', 400);
+  }
+
+  const team = await prisma.team.findUnique({
+    where: { id: teamId },
+  });
+
+  if (!team) {
+    throw new AppError('Team not found', 404);
+  }
+
+  const isPasswordValid = await bcrypt.compare(currentPassword, team.password);
+  if (!isPasswordValid) {
+    throw new AppError('Current password is incorrect', 401);
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+  await prisma.team.update({
+    where: { id: teamId },
+    data: { password: hashedPassword },
+  });
+
+  return { message: 'Password changed successfully' };
+};
+
 const TeamService = {
   registerTeam,
   loginTeam,
@@ -300,6 +379,8 @@ const TeamService = {
   createDepartment,
   updateTeam,
   changeTeamPassword,
+  updateProfile,
+  changePassword,
 };
 
 module.exports = { TeamService };

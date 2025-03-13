@@ -13,10 +13,29 @@ const auth = (...requiredRoles) => {
 
     const decoded = verifyToken(token);
 
+    if (!decoded.userId) {
+      throw new AppError('Invalid token', 401);
+    }
+
     const user = await prisma.user.findUnique({
       where: {
         id: decoded.userId,
       },
+      include: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            logo: true,
+          }
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+          }
+        }
+      }
     });
 
     if (!user) {
@@ -27,7 +46,17 @@ const auth = (...requiredRoles) => {
       throw new AppError('You are not authorized', 403);
     }
 
+    // Set teamId explicitly from decoded token or user's team relation
     req.user = user;
+    req.user.teamId = decoded.teamId || user.teamId || (user.team ? user.team.id : null);
+    
+    // Log the user context for debugging
+    console.log('Auth middleware user context:', {
+      userId: req.user.id,
+      teamId: req.user.teamId,
+      isTeamLeader: req.user.isTeamLeader
+    });
+    
     next();
   });
 };

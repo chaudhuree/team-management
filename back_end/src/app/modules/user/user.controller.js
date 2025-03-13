@@ -107,7 +107,23 @@ const getTeamMembers = catchAsync(async (req, res) => {
  * Update user profile
  */
 const updateProfile = catchAsync(async (req, res) => {
-  const result = await UserService.updateProfile(req.user.id, req.body);
+  console.log('Update profile request body:', req.body);
+  
+  // Extract the data from the request
+  const updateData = {
+    name: req.body.name,
+    // Add other fields as needed
+  };
+  
+  // If there's a photo file, add it to the update data
+  if (req.file) {
+    updateData.photo = req.file.path;
+    updateData.photoKey = req.file.filename;
+  }
+  
+  console.log('Update data being sent to service:', updateData);
+  
+  const result = await UserService.updateProfile(req.user.id, updateData);
   
   sendResponse(res, {
     success: true,

@@ -209,6 +209,13 @@ export const checkAuthState = createAsyncThunk(
   }
 );
 
+export const updateUserProfile = createAsyncThunk(
+  'auth/updateUserProfile',
+  async (userData, { getState }) => {
+    return userData; // The profile data is already updated by the component
+  }
+);
+
 // Load persisted state from localStorage
 const persistedState = loadAuthState();
 
@@ -268,7 +275,15 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = true;
         state.user = action.payload.user;
-        state.team = action.payload.team;
+        
+        // Ensure team data is set correctly
+        if (action.payload.isTeam) {
+          state.team = action.payload.team;
+        } else {
+          // For individual users, get team from user object
+          state.team = action.payload.user?.team || action.payload.team;
+        }
+        
         state.token = localStorage.getItem('token');
         state.isTeamLeader = action.payload.isTeamLeader;
         state.isTeam = action.payload.isTeam;
@@ -316,6 +331,36 @@ const authSlice = createSlice({
         state.token = null;
         state.isTeamLeader = false;
         state.isTeam = false;
+      })
+      
+      // Update user profile
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        if (action.payload) {
+          state.user = { ...state.user, ...action.payload };
+          // Save updated state to localStorage
+          saveAuthState(state);
+        }
+      })
+      
+      // Add this custom action for profile updates
+      .addCase('auth/updateProfile', (state, action) => {
+        const { data, isTeam } = action.payload;
+        
+        if (isTeam) {
+          state.team = { ...state.team, ...data };
+        } else {
+          state.user = { ...state.user, ...data };
+        }
+        
+        // Save updated state to localStorage
+        saveAuthState(state);
+        
+        // Log the updated state for debugging
+        console.log('Updated auth state:', {
+          user: state.user,
+          team: state.team,
+          isTeam: state.isTeam
+        });
       });
   },
 });

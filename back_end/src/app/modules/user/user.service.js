@@ -127,9 +127,9 @@ const loginIndividual = async (loginData) => {
       email: user.email,
       role: user.role,
       photo: user.photo,
-      team: user.team,
-      department: user.department,
       isTeamLeader: user.isTeamLeader,
+      department: user.department,
+      team: user.team,
     },
   };
 };
