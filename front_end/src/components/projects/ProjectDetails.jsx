@@ -16,12 +16,12 @@ const ProjectDetails = () => {
   useEffect(() => {
     const fetchProjectDetails = async () => {
       try {
-        const response = await axios.get(`/api/projects/${id}`, {
+        const response = await axios.get(`/projects/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setProject(response.data);
-        setAssignments(response.data.assignments || []);
-        setNotes(response.data.notes || []);
+        setProject(response.data.data);
+        setAssignments(response.data.data.assignments || []);
+        setNotes(response.data.data.notes || []);
         setLoading(false);
       } catch (error) {
         toast.error(error.response?.data?.message || 'Error fetching project details');
@@ -64,33 +64,63 @@ const ProjectDetails = () => {
     return price - (price * 0.2); // 20% deduction
   };
 
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return format(date, 'PPP');
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-        <h1 className="text-3xl font-bold mb-4">{project.name}</h1>
+        <h1 className="text-3xl font-bold mb-4">{project?.name}</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h2 className="text-xl font-semibold mb-3">Project Information</h2>
             <div className="space-y-2">
-              <p><span className="font-medium">Type:</span> {project.type.replace('_', ' ')}</p>
-              <p><span className="font-medium">Description:</span> {project.description || 'N/A'}</p>
-              <p><span className="font-medium">Price:</span> ${project.price}</p>
-              <p><span className="font-medium">Earnings after completion:</span> ${calculateEarnings(project.price)}</p>
+              <p>
+                <span className="font-medium">Type:</span>{' '}
+                {project?.type?.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ') || 'N/A'}
+              </p>
+              <p><span className="font-medium">Description:</span> {project?.description || 'N/A'}</p>
+              <p><span className="font-medium">Price:</span> ${project?.price || 0}</p>
+              <p>
+                <span className="font-medium">Earnings after completion:</span>{' '}
+                ${project?.price ? calculateEarnings(project.price) : 0}
+              </p>
               <p>
                 <span className="font-medium">Priority:</span>
-                <span className={getPriorityColor(project.priority)}> {project.priority}</span>
+                <span className={getPriorityColor(project?.priority)}> {project?.priority || 'N/A'}</span>
               </p>
-              <p><span className="font-medium">Deadline:</span> {format(new Date(project.deadline), 'PPP')}</p>
-              <p><span className="font-medium">Creation Month:</span> {project.creationMonth}</p>
-              <p><span className="font-medium">Milestones:</span> {project.milestones || 'N/A'}</p>
-              <p><span className="font-medium">Running Milestone:</span> {project.runningMilestone || 'N/A'}</p>
+              <p>
+                <span className="font-medium">Deadline:</span>{' '}
+                {project?.deadline ? formatDate(project.deadline) : 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium">Creation Month:</span>{' '}
+                {project?.creationMonth || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium">Milestones:</span>{' '}
+                {project?.milestones || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium">Running Milestone:</span>{' '}
+                {project?.runningMilestone || 'N/A'}
+              </p>
             </div>
           </div>
           
           <div>
             <h2 className="text-xl font-semibold mb-3">Status</h2>
             <div className="flex flex-wrap gap-2">
-              {project.status.map((status, index) => (
+              {project?.status?.map((status, index) => (
                 <span
                   key={index}
                   className={`px-3 py-1 rounded-full text-sm ${getStatusColor(status)}`}
@@ -108,11 +138,11 @@ const ProjectDetails = () => {
           <h2 className="text-xl font-semibold mb-4">Assignments</h2>
           {assignments.length > 0 ? (
             <div className="space-y-4">
-              {assignments.map((assignment) => (
+              {assignments?.map((assignment) => (
                 <div key={assignment.id} className="border-b pb-3">
                   <p><span className="font-medium">Member:</span> {assignment.user.name}</p>
                   <p><span className="font-medium">Phase:</span> {assignment.phase}</p>
-                  <p><span className="font-medium">Assigned:</span> {format(new Date(assignment.createdAt), 'PPP')}</p>
+                  <p><span className="font-medium">Assigned:</span> {formatDate(assignment.createdAt)}</p>
                 </div>
               ))}
             </div>
@@ -125,13 +155,13 @@ const ProjectDetails = () => {
           <h2 className="text-xl font-semibold mb-4">Notes</h2>
           {notes.length > 0 ? (
             <div className="space-y-4">
-              {notes.map((note) => (
+              {notes?.map((note) => (
                 <div key={note.id} className="border-b pb-3">
                   <p className="whitespace-pre-wrap">{note.content}</p>
                   <div className="text-sm text-gray-500 mt-2">
                     <span>Version {note.version}</span>
                     <span className="mx-2">•</span>
-                    <span>{format(new Date(note.updatedAt), 'PPP')}</span>
+                    <span>{formatDate(note.updatedAt)}</span>
                   </div>
                 </div>
               ))}

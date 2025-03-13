@@ -2,11 +2,16 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 import { format } from 'date-fns';
 
+// Ensure axios is properly configured
+axios.defaults.baseURL = 'http://localhost:4000';
+
 export const createProject = createAsyncThunk(
   'project/create',
   async (projectData, { rejectWithValue }) => {
     try {
+      console.log('Making API request to create project:', projectData);
       const response = await axios.post(`/projects/create`, projectData);
+      console.log('API response:', response.data);
       return response.data;
     } catch (error) {
       console.error('API error:', error); // Log API errors

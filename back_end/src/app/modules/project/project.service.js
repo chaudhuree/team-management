@@ -28,6 +28,14 @@ const createProject = async (payload) => {
     initialStatus.push('UI/Started');
   }
 
+  // Ensure deadline is a valid ISO date string
+  let formattedDeadline;
+  try {
+    formattedDeadline = new Date(deadline).toISOString();
+  } catch (error) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid deadline format. Please provide a valid date.');
+  }
+
   const project = await prisma.project.create({
     data: {
       name,
@@ -35,7 +43,7 @@ const createProject = async (payload) => {
       type,
       price,
       priority,
-      deadline,
+      deadline: formattedDeadline,
       milestones,
       status: initialStatus,
       creationMonth: new Date().toISOString().slice(0, 7), // YYYY-MM format
@@ -115,6 +123,13 @@ const getAllProjects = async (filters) => {
   });
 
   return projects;
+};
+
+const getProjectById = async (id) => {
+  const project = await prisma.project.findUnique({
+    where: { id },
+  });
+  return project;
 };
 
 const getProjectsByPhase = async (phase) => {
@@ -305,6 +320,7 @@ const deleteProject = async (id) => {
 module.exports.ProjectService = {
   createProject,
   getAllProjects,
+  getProjectById,
   getProjectsByPhase,
   getProjectsByMonth,
   updateProject,

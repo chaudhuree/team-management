@@ -34,6 +34,17 @@ const getAllProjects = catchAsync(async (req, res) => {
   });
 });
 
+const getProjectById = catchAsync(async (req, res) => {
+  const result = await ProjectService.getProjectById(req.params.id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Project retrieved successfully',
+    data: result,
+  });
+});
+
+
 const getProjectsByPhase = catchAsync(async (req, res) => {
   const result = await ProjectService.getProjectsByPhase(req.params.phase);
   sendResponse(res, {
@@ -111,6 +122,7 @@ const deleteProject = catchAsync(async (req, res) => {
 module.exports = {
   createProject,
   getAllProjects,
+  getProjectById,
   getProjectsByPhase,
   getProjectsByMonth,
   updateProject,

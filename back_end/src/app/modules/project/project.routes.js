@@ -4,6 +4,7 @@ const { ENUM_USER_ROLE } = require('../../utils/constants');
 const {
   createProject,
   getAllProjects,
+  getProjectById,
   getProjectsByPhase,
   getProjectsByMonth,
   updateProject,
@@ -67,6 +68,12 @@ router.delete(
   '/:id',
   auth(ENUM_USER_ROLE.LEADER),
   deleteProject
+);
+
+router.get(
+  '/:id',
+  auth(),
+  getProjectById
 );
 
 module.exports = router;

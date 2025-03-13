@@ -32,7 +32,19 @@ const Projects = () => {
   const [selectedPriority, setSelectedPriority] = useState('all');
 console.log({user,team})
   useEffect(() => {
-    dispatch(getAllProjects({ month: selectedMonth }));
+    try {
+      dispatch(getAllProjects({ month: selectedMonth }))
+        .unwrap()
+        .then(result => {
+          console.log('Projects fetched successfully:', result);
+        })
+        .catch(error => {
+          console.error('Error fetching projects:', error);
+          toast.error('Failed to fetch projects. Please try again.');
+        });
+    } catch (error) {
+      console.error('Error dispatching getAllProjects:', error);
+    }
   }, [dispatch, selectedMonth]);
 
   const fetchTeamMembers = async () => {
@@ -74,24 +86,46 @@ console.log({user,team})
   console.log("Departments:", departments);
   console.log("isCreateModalOpen:", isCreateModalOpen);
 
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return date.toLocaleDateString();
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
+  };
+
   const getDeadlineStatus = (deadline) => {
-    const daysLeft = Math.ceil(
-      (new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24)
-    );
-    if (daysLeft <= 1) return 'bg-red-100 text-red-800';
-    if (daysLeft <= 4) return 'bg-orange-100 text-orange-800';
-    return 'bg-green-100 text-green-800';
+    try {
+      const date = new Date(deadline);
+      if (isNaN(date.getTime())) return 'bg-gray-100 text-gray-800';
+      
+      const daysLeft = Math.ceil(
+        (date - new Date()) / (1000 * 60 * 60 * 24)
+      );
+      if (daysLeft <= 1) return 'bg-red-100 text-red-800';
+      if (daysLeft <= 4) return 'bg-orange-100 text-orange-800';
+      return 'bg-green-100 text-green-800';
+    } catch (error) {
+      console.error('Error calculating deadline status:', error);
+      return 'bg-gray-100 text-gray-800';
+    }
   };
 
   const filteredProjects = projects
-    ? projects.filter((project) => {
-        const typeMatch =
-          selectedType === 'all' || project.type.toLowerCase() === selectedType;
-        const priorityMatch =
-          selectedPriority === 'all' ||
-          project.priority.toLowerCase() === selectedPriority;
-        return typeMatch && priorityMatch;
-      })
+    ? projects
+        .filter(project => project) // Filter out null/undefined projects
+        .filter((project) => {
+          const typeMatch =
+            selectedType === 'all' || project.type === selectedType.toUpperCase();
+          const priorityMatch =
+            selectedPriority === 'all' ||
+            project.priority === selectedPriority;
+          return typeMatch && priorityMatch;
+        })
     : [];
 
   if (isLoading) {
@@ -149,9 +183,9 @@ console.log({user,team})
               className="border rounded px-3 py-2"
             >
               <option value="all">All Types</option>
-              <option value="frontend">Frontend Only</option>
-              <option value="fullstack">Full Stack</option>
-              <option value="ui">UI Only</option>
+              <option value="frontend_only">Frontend Only</option>
+              <option value="full_stack">Full Stack</option>
+              <option value="ui_only">UI Only</option>
             </select>
           </div>
           <div className="flex items-center">
@@ -161,9 +195,9 @@ console.log({user,team})
               className="border rounded px-3 py-2"
             >
               <option value="all">All Priorities</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
             </select>
           </div>
         </div>
@@ -195,7 +229,7 @@ console.log({user,team})
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProjects.map((project) => (
+              {filteredProjects.map((project) => project && (
                 <tr
                   key={project.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -232,7 +266,7 @@ console.log({user,team})
                         project.deadline
                       )}`}
                     >
-                      {new Date(project.deadline).toLocaleDateString()}
+                      {formatDate(project.deadline)}
                     </span>
                   </td>
                   <td className="px-6 py-4">

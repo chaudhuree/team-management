@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createProject } from '../../store/slices/projectSlice';
 import Modal from '../common/Modal';
@@ -7,49 +7,86 @@ import toast from 'react-hot-toast'; // Import toast
 const CreateProjectModal = ({ isOpen, onClose, teamMembers, departments, isLoading }) => {
   const dispatch = useDispatch();
   const { teamMembers: existingTeamMembers } = useSelector((state) => state.team);
+  const { user,team } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'frontend',
+    type: 'FRONTEND_ONLY',
     deadline: '',
     notes: '',
     milestones: '',
     price: '',
-    priority: 'medium',
+    priority: 'MEDIUM',
     description: '',
-    teamId: useSelector(state => state.auth.user.teamId) || '', // Get teamId here
+    teamId: team.id, // Will be set in useEffect
     assignedUsers: [],
   });
 
+  // Ensure teamId is set from auth state
+  useEffect(() => {
+    if (user && user.teamId) {
+      setFormData(prev => ({ ...prev, teamId: user.teamId }));
+      console.log('Setting teamId from user:', user.teamId);
+    }
+  }, [user]);
+
   const projectTypes = [
-    { value: 'frontend', label: 'Frontend Only' },
-    { value: 'fullstack', label: 'Full Stack' },
-    { value: 'ui', label: 'UI Only' },
+    { value: 'FRONTEND_ONLY', label: 'Frontend Only' },
+    { value: 'FULL_STACK', label: 'Full Stack' },
+    { value: 'UI_ONLY', label: 'UI Only' },
   ];
 
   const priorities = [
-    { value: 'high', label: 'High' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'low', label: 'Low' },
+    { value: 'HIGH', label: 'High' },
+    { value: 'MEDIUM', label: 'Medium' },
+    { value: 'LOW', label: 'Low' },
   ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if teamId is set
+    if (!formData.teamId) {
+      toast.error('Team ID is required. Please try again or contact support.');
+      console.error('TeamId is missing:', formData);
+      return;
+    }
+    
+    // Format the deadline to include time (ISO-8601 format)
+    const formattedData = {
+      ...formData,
+      deadline: formData.deadline ? `${formData.deadline}T00:00:00.000Z` : null
+    };
+    
+    if (!formattedData.deadline) {
+      toast.error('Deadline is required.');
+      return;
+    }
+    
     toast.info('Submitting project...', { id: 'submit' });
+    
+    console.log('Submitting project with data:', formattedData);
 
     try {
-      await dispatch(createProject(formData)).unwrap();
+      const result = await dispatch(createProject(formattedData)).unwrap();
+      console.log('Project created successfully:', result);
       toast.success('Project created successfully!', { id: 'submit' });
       onClose();
     } catch (error) {
-      toast.error(`Failed to create project: ${error.message || 'Unknown error'}`, { id: 'submit' });
       console.error('Failed to create project:', error);
+      toast.error(`Failed to create project: ${error.message || 'Unknown error'}`, { id: 'submit' });
     }
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // Convert numeric fields to numbers
+    if (name === 'price' || name === 'milestones') {
+      setFormData((prev) => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleAssignmentChange = (e, memberId) => {
