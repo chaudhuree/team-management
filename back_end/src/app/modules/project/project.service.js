@@ -281,12 +281,12 @@ const getUserProjects = async (userId) => {
     },
     include: {
       project: {
-        include: {
-          assignments: {
-            include: {
-              user: true,
-            },
-          },
+        select: {
+          id: true,
+          name: true,
+          projectStatus: true,
+          deadline: true,
+          type: true,
         },
       },
     },

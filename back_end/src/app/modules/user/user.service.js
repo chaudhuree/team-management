@@ -5,6 +5,7 @@ const { createToken } = require('../../utils/jwt.utils');
 const generateOTP = require('../../utils/generateOTP');
 const ApiError = require('../../errors/ApiError');
 const httpStatus = require('http-status');
+const { ENUM_USER_ROLE } = require('../../utils/constants');
 
 /**
  * Register a new individual user
@@ -418,53 +419,25 @@ const updateProfile = async (userId, updateData) => {
 /**
  * Update user role by team leader
  */
-const updateUserRole = async (userId, roleData, teamId) => {
-  const { role, departmentId } = roleData;
+const updateUserRole = async (id, role) => {
+  // Validate role
+  if (!Object.values(ENUM_USER_ROLE).includes(role)) {
+    throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid role');
+  }
 
-  const user = await prisma.user.findFirst({
-    where: {
-      id: userId,
-      teamId,
-    },
+  const user = await prisma.user.findUnique({
+    where: { id },
   });
 
   if (!user) {
-    throw new AppError('User not found in your team', 404);
-  }
-
-  // If updating department, verify it belongs to the team
-  if (departmentId) {
-    const department = await prisma.department.findFirst({
-      where: {
-        id: departmentId,
-        teamId,
-      },
-    });
-
-    if (!department) {
-      throw new AppError('Department not found or does not belong to your team', 404);
-    }
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   const updatedUser = await prisma.user.update({
-    where: {
-      id: userId,
-    },
-    data: {
-      role,
-      departmentId,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      department: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+    where: { id },
+    data: { role },
+    include: {
+      department: true,
     },
   });
 
@@ -699,6 +672,22 @@ const getCurrentUser = async (userId) => {
   };
 };
 
+const getUserById = async (id) => {
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      department: true,
+      team: true,
+    },
+  });
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  return user;
+};
+
 const UserService = {
   registerIndividual,
   loginIndividual,
@@ -716,6 +705,7 @@ const UserService = {
   getUserNotifications,
   markNotificationAsRead,
   getCurrentUser,
+  getUserById,
 };
 
 module.exports = { UserService };

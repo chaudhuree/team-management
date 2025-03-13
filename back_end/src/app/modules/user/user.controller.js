@@ -1,6 +1,9 @@
 const catchAsync = require('../../utils/catchAsync');
 const sendResponse = require('../../utils/sendResponse');
 const { UserService } = require('./user.service');
+const httpStatus = require('http-status');
+const { ApiError } = require('../../errors/ApiError');
+const { ENUM_USER_ROLE } = require('../../utils/constants');
 
 /**
  * Register a new individual user
@@ -118,11 +121,19 @@ const updateProfile = catchAsync(async (req, res) => {
  * Update user role by team leader
  */
 const updateUserRole = catchAsync(async (req, res) => {
-  const result = await UserService.updateUserRole(req.params.id, req.body, req.user.teamId);
+  const { id } = req.params;
+  const { role } = req.body;
+  
+  // Only team leaders can update roles
+  if (req.user.role !== ENUM_USER_ROLE.LEADER) {
+    throw new ApiError(httpStatus.FORBIDDEN, 'Only team leaders can update user roles');
+  }
+  
+  const result = await UserService.updateUserRole(id, role);
   
   sendResponse(res, {
+    statusCode: httpStatus.OK,
     success: true,
-    statusCode: 200,
     message: 'User role updated successfully',
     data: result,
   });
@@ -227,6 +238,18 @@ const getCurrentUser = catchAsync(async (req, res) => {
   });
 });
 
+const getUserById = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await UserService.getUserById(id);
+  
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'User retrieved successfully',
+    data: result,
+  });
+});
+
 const UserController = {
   registerIndividual,
   loginIndividual,
@@ -244,6 +267,7 @@ const UserController = {
   getTeamMembers,
   updateUserRole,
   deleteUser,
+  getUserById,
 };
 
 module.exports = { UserController };

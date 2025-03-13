@@ -2,6 +2,7 @@ const express = require('express');
 const { UserController } = require('./user.controller');
 const auth = require('../../middlewares/auth');
 const { UserRole } = require('@prisma/client');
+const { ENUM_USER_ROLE } = require('../../utils/constants');
 
 const router = express.Router();
 
@@ -26,5 +27,9 @@ router.patch('/:id/approve', auth(), UserController.approveUser);
 router.delete('/:id/reject', auth(), UserController.rejectUser);
 router.patch('/:id/role', auth(), UserController.updateUserRole);
 router.delete('/:id', auth(), UserController.deleteUser);
+
+// Add these routes to your existing user routes
+router.get('/:id', auth(), UserController.getUserById);
+router.patch('/:id/role', auth(ENUM_USER_ROLE.LEADER), UserController.updateUserRole);
 
 module.exports = router;
